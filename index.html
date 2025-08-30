@@ -48,7 +48,7 @@
                 }
             };
 
-            const [tasks, setTasks] = useState(() => stateFromString('').tasks);
+            const [tasks, setTasks] = useState([]);
             const [currentTime, setCurrentTime] = useState(Date.now());
             const [editingTask, setEditingTask] = useState(null);
             const [editingValue, setEditingValue] = useState('');
@@ -58,6 +58,74 @@
             
             const [currentInterval, setCurrentInterval] = useState(null); // {start: timestamp, type: 'Active'|'Idle', taskId: number}
             const [currentTaskId, setCurrentTaskId] = useState(1);
+
+            // localStorage functions
+            const saveToStorage = (state) => {
+                try {
+                    const stateToSave = {
+                        tasks: state.tasks.map(({position, ...task}) => task), // Strip position fields
+                        currentTaskId: state.currentTaskId,
+                        currentInterval: state.currentInterval,
+                        savedAt: new Date().toISOString()
+                    };
+                    localStorage.setItem('taskTimerState', JSON.stringify(stateToSave));
+                } catch (error) {
+                    console.warn('Failed to save to localStorage:', error);
+                }
+            };
+
+            const loadFromStorage = () => {
+                try {
+                    const saved = localStorage.getItem('taskTimerState');
+                    if (!saved) return null;
+                    
+                    const state = JSON.parse(saved);
+                    return {
+                        ...state,
+                        tasks: updatePositions(state.tasks)
+                    };
+                } catch (error) {
+                    console.warn('Failed to load from localStorage:', error);
+                    return null;
+                }
+            };
+
+            const clearStorage = () => {
+                localStorage.removeItem('taskTimerState');
+                // Reset to default state
+                const defaultState = stateFromString('');
+                setTasks(defaultState.tasks);
+                setCurrentTaskId(defaultState.currentTaskId);
+                setCurrentInterval(null);
+                setCurrentTime(Date.now());
+            };
+
+            // Load saved state on mount
+            useEffect(() => {
+                const savedState = loadFromStorage();
+                if (savedState) {
+                    setTasks(savedState.tasks);
+                    setCurrentTaskId(savedState.currentTaskId);
+                    setCurrentInterval(savedState.currentInterval);
+                } else {
+                    // No saved state, use defaults
+                    const defaultState = stateFromString('');
+                    setTasks(defaultState.tasks);
+                    setCurrentTaskId(defaultState.currentTaskId);
+                    setCurrentInterval(defaultState.currentInterval);
+                }
+                setCurrentTime(Date.now());
+            }, []);
+
+            // Auto-save whenever state changes
+            useEffect(() => {
+                const currentState = {
+                    tasks,
+                    currentTaskId,
+                    currentInterval
+                };
+                saveToStorage(currentState);
+            }, [tasks, currentTaskId, currentInterval]);
 
             // Update current time every 100ms when interval is running  
             useEffect(() => {
@@ -288,6 +356,13 @@
                                 className="px-4 py-2 rounded bg-blue-500 text-white"
                             >
                                 Reset
+                            </button>
+                            <button 
+                                onClick={clearStorage}
+                                className="px-4 py-2 rounded bg-red-500 text-white"
+                                title="Clear all saved data and reset to defaults"
+                            >
+                                Clear
                             </button>
                         </div>
                     </div>
