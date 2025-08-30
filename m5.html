@@ -24,7 +24,7 @@
         const { useState, useEffect, useCallback } = React;
 
         function TaskTimer() {
-            const stateFromTitlesOnly = (titles, title = null) => ({
+            const stateFromTitlesOnly = (titles, title = "Task Timer") => ({
                 title,
                 tasks: titles.map((name, index) => ({
                     id: index + 1, name, completed: false, Active: 0, Idle: 0, position: index
@@ -47,7 +47,7 @@
                     // Simple encoding: check for title prefix
                     const lines = stateString.split('\n').map(line => line.trim()).filter(line => line !== '');
                     
-                    let title = null;
+                    let title = ""; // Default to empty string for simple imports
                     let taskLines = lines;
                     
                     if (lines.length > 0 && lines[0].startsWith('title: ')) {
@@ -63,7 +63,7 @@
                 }
             };
 
-            const [title, setTitle] = useState(null);
+            const [title, setTitle] = useState("Task Timer");
             const [tasks, setTasks] = useState([]);
             const [currentTime, setCurrentTime] = useState(Date.now());
             const [editingTask, setEditingTask] = useState(null);
@@ -133,6 +133,20 @@
                 }
             };
 
+            const deleteAllAppState = () => {
+                localStorage.removeItem('taskTimerSlots');
+                localStorage.removeItem('taskTimerCurrentSlot');
+                // Reset to fresh app state
+                const defaultState = stateFromString('');
+                setTitle(defaultState.title);
+                setTasks(defaultState.tasks);
+                setCurrentTaskId(defaultState.currentTaskId);
+                setCurrentInterval(null);
+                setCurrentSlot(1);
+                setCurrentTime(Date.now());
+                setShowSlots(false);
+            };
+
             const switchToSlot = (slotId) => {
                 // Save current state to current slot first
                 saveToStorage({ title, tasks, currentTaskId, currentInterval }, currentSlot);
@@ -165,7 +179,7 @@
                 
                 const savedState = loadFromStorage(currentSlotId.toString());
                 if (savedState) {
-                    setTitle(savedState.title || null);
+                    setTitle(savedState.title || "Task Timer");
                     setTasks(savedState.tasks);
                     setCurrentTaskId(savedState.currentTaskId);
                     setCurrentInterval(savedState.currentInterval);
@@ -318,11 +332,11 @@
             };
 
             const encodeState = () => {
-                // If not started just return task titles (with title if present)
+                // If not started just return task titles (with title if not default)
                 if (!currentInterval && 
                     tasks.every(task => task.Active === 0 && task.Idle === 0 && !task.completed)) {
                     const taskNames = tasks.map(task => task.name).join('\n');
-                    return title ? `title: ${title}\n${taskNames}` : taskNames;
+                    return (title && title !== "Task Timer") ? `title: ${title}\n${taskNames}` : taskNames;
                 }
                 
                 const state = { 
@@ -451,10 +465,10 @@
                             />
                         ) : (
                             <h1 
-                                className={`text-2xl font-bold cursor-pointer ${title === null ? '' : title === '' ? 'text-gray-400 italic' : ''}`}
+                                className={`text-2xl font-bold cursor-pointer ${title === '' ? 'text-gray-400 italic' : ''}`}
                                 onClick={() => changeEditingTitleTo(true)}
                             >
-                                {title === null ? 'Task Timer' : title === '' ? 'Untitled' : title}
+                                {title === '' ? 'Untitled' : title}
                             </h1>
                         )}
                         <div className="ml-auto flex gap-2">
@@ -501,9 +515,8 @@
                                                 <span className="font-medium">Slot {slot.id}</span>
                                                 {currentSlot === slot.id && <span className="text-blue-500 text-sm">Current</span>}
                                             </div>
-                                            <div className={`text-sm ${!slot.data ? 'text-gray-400 italic' : slot.data.title === null ? 'text-gray-600' : slot.data.title === '' ? 'text-gray-400 italic' : ''}`}>
-                                                {!slot.data ? 'Empty slot' : 
-                                                 slot.data.title === null ? 'Task Timer' :
+                                            <div className={`text-sm ${!slot.data ? 'text-gray-400 italic' : slot.data.title === '' ? 'text-gray-400 italic' : ''}`}>
+                                                {!slot.data ? 'Task Timer' : 
                                                  slot.data.title === '' ? 'Untitled' : 
                                                  slot.data.title}
                                             </div>
