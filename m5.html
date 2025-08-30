@@ -153,10 +153,10 @@
                 
                 // Load the target slot
                 setCurrentSlot(slotId);
-                const savedState = loadFromStorage(slotId);
+                const savedState = loadFromStorage(slotId.toString());
                 
                 if (savedState) {
-                    setTitle(savedState.title || null);
+                    setTitle(savedState.title || "Task Timer");
                     setTasks(savedState.tasks);
                     setCurrentTaskId(savedState.currentTaskId);
                     setCurrentInterval(savedState.currentInterval);
@@ -171,6 +171,19 @@
                 setCurrentTime(Date.now());
                 setShowSlots(false);
             };
+
+            // Update current time every 100ms when interval is running  
+            useEffect(() => {
+                if (!currentInterval) return;
+                const timer = setInterval(() => setCurrentTime(Date.now()), 100);
+                return () => clearInterval(timer);
+            }, [currentInterval]);
+
+            const handleInputRef = useCallback((input) => {
+                if (input) {
+                    input.select();
+                }
+            }, []);
 
             // Load saved state on mount
             useEffect(() => {
@@ -204,19 +217,6 @@
                 };
                 saveToStorage(currentState, currentSlot);
             }, [title, tasks, currentTaskId, currentInterval, currentSlot]);
-
-            // Update current time every 100ms when interval is running  
-            useEffect(() => {
-                if (!currentInterval) return;
-                const timer = setInterval(() => setCurrentTime(Date.now()), 100);
-                return () => clearInterval(timer);
-            }, [currentInterval]);
-
-            const handleInputRef = useCallback((input) => {
-                if (input) {
-                    input.select();
-                }
-            }, []);
 
             const getTaskTime = (task, mode) => {
                 const baseTime = task[mode];
@@ -523,12 +523,28 @@
                                         </div>
                                     ))}
                                 </div>
-                                <button 
-                                    onClick={() => setShowSlots(false)}
-                                    className="mt-4 w-full px-3 py-2 rounded bg-gray-200"
-                                >
-                                    Close
-                                </button>
+                                <div className="mt-4 flex gap-2">
+                                    <button 
+                                        onClick={() => setShowSlots(false)}
+                                        className="flex-1 px-3 py-2 rounded bg-gray-200"
+                                    >
+                                        Close
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setShowSlots(false);
+                                            setTimeout(() => {
+                                                if (confirm('Delete ALL app state? This cannot be undone!')) {
+                                                    deleteAllAppState();
+                                                }
+                                            }, 100);
+                                        }}
+                                        className="px-3 py-2 rounded bg-red-500 text-white text-sm"
+                                        title="Delete all saved timers and reset to fresh app state"
+                                    >
+                                        Delete all app state (!)
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
