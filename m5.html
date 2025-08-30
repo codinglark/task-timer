@@ -533,7 +533,20 @@
                                                         return taskName;
                                                     }
                                                     
-                                                    const timeValue = formatTime(currentTask[interval.type]);
+                                                    // Calculate live time if this is the current active slot
+                                                    let timeValue;
+                                                    if (slot.id === currentSlot && currentInterval && 
+                                                        currentInterval.taskId === currentTask.id && 
+                                                        currentInterval.type === interval.type) {
+                                                        // This is the live running timer - show live time
+                                                        const baseTime = currentTask[interval.type];
+                                                        const runningTime = currentTime - currentInterval.start;
+                                                        timeValue = formatTime(baseTime + runningTime);
+                                                    } else {
+                                                        // Static saved time
+                                                        timeValue = formatTime(currentTask[interval.type]);
+                                                    }
+                                                    
                                                     const buttonStyle = interval.type === 'Active' 
                                                         ? 'bg-green-500 text-white px-1 rounded text-xs'
                                                         : 'bg-red-500 text-white px-1 rounded text-xs';
