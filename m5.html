@@ -512,13 +512,41 @@
                                             className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${currentSlot === slot.id ? 'border-blue-500 bg-blue-50' : ''}`}
                                         >
                                             <div className="flex items-center justify-between">
-                                                <span className="font-medium">Slot {slot.id}</span>
+                                                <span className="font-medium">
+                                                    {!slot.data ? 'Task Timer' : 
+                                                     slot.data.title === '' ? 'Untitled' : 
+                                                     slot.data.title}
+                                                </span>
                                                 {currentSlot === slot.id && <span className="text-blue-500 text-sm">Current</span>}
                                             </div>
-                                            <div className={`text-sm ${!slot.data ? 'text-gray-400 italic' : slot.data.title === '' ? 'text-gray-400 italic' : ''}`}>
-                                                {!slot.data ? 'Task Timer' : 
-                                                 slot.data.title === '' ? 'Untitled' : 
-                                                 slot.data.title}
+                                            <div className="text-sm text-gray-600">
+                                                {(() => {
+                                                    if (!slot.data) return 'Task 1';
+                                                    
+                                                    const currentTask = slot.data.tasks.find(t => t.id === slot.data.currentTaskId);
+                                                    if (!currentTask) return 'No current task';
+                                                    
+                                                    const taskName = currentTask.name || 'Untitled task';
+                                                    const interval = slot.data.currentInterval;
+                                                    
+                                                    if (!interval || interval.taskId !== currentTask.id) {
+                                                        return taskName;
+                                                    }
+                                                    
+                                                    const timeValue = formatTime(currentTask[interval.type]);
+                                                    const buttonStyle = interval.type === 'Active' 
+                                                        ? 'bg-green-500 text-white px-1 rounded text-xs'
+                                                        : 'bg-red-500 text-white px-1 rounded text-xs';
+                                                    
+                                                    return (
+                                                        <span>
+                                                            {taskName} 
+                                                            <span className={`ml-2 ${buttonStyle}`}>
+                                                                {interval.type}: {timeValue}
+                                                            </span>
+                                                        </span>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     ))}
