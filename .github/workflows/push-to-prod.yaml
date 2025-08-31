@@ -1,0 +1,30 @@
+name: Promote Dev to Prod
+on:
+  workflow_dispatch:  # Manual trigger only
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Clear non-dotfiles from root
+      run: |
+        # Remove everything except dotfiles
+        find . -maxdepth 1 ! -name ".*" ! -name "." ! -name ".." -exec rm -rf {} +
+    
+    - name: Copy dev to root
+      run: |
+        # Copy all files from dev/ to root
+        cp -r dev/* ./
+    
+    - name: Commit and push
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add .
+        git commit -m "Promote dev to prod - $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
+        git push
