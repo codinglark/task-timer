@@ -1,0 +1,29 @@
+name: Test Create File
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  create-test-file:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create dev directory and test file
+      run: |
+        mkdir -p dev
+        echo '<!DOCTYPE html>
+        <html>
+        <head><title>Test File</title></head>
+        <body>
+        <h1>Test file created by GitHub Action</h1>
+        <p>Created at: $(date)</p>
+        </body>
+        </html>' > dev/test.html
+    
+    - name: Commit and push
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add dev/test.html
+        git commit -m "Add test file via GitHub Action"
+        git push
