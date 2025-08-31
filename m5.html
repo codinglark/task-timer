@@ -535,19 +535,11 @@
                                                     
                                                     // Calculate live time
                                                     let timeValue;
-                                                    if (slot.id === currentSlot && currentInterval && 
-                                                        currentInterval.taskId === currentTask.id && 
-                                                        currentInterval.type === interval.type) {
-                                                        // This is the current active slot - use live state
+                                                    if (interval.start) {
+                                                        // This slot is running - calculate live time from interval start
                                                         const baseTime = currentTask[interval.type];
-                                                        const runningTime = currentTime - currentInterval.start;
+                                                        const runningTime = currentTime - interval.start;
                                                         timeValue = formatTime(baseTime + runningTime);
-                                                    } else if (interval.start && slot.data.savedAt) {
-                                                        // This is another running slot - calculate elapsed time since last save
-                                                        const baseTime = currentTask[interval.type];
-                                                        const lastSaveTime = new Date(slot.data.savedAt).getTime();
-                                                        const elapsedSinceSave = currentTime - lastSaveTime;
-                                                        timeValue = formatTime(baseTime + elapsedSinceSave);
                                                     } else {
                                                         // Static saved time
                                                         timeValue = formatTime(currentTask[interval.type]);
