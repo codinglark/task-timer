@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Timer</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="storage.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        function TaskTimer() {
+            const stateFromTitlesOnly = (titles, title = "Task Timer") => ({
+                title,
+                tasks: titles.map((name, index) => ({
+                    id: index + 1, name, completed: false, Active: 0, Idle: 0, position: index
+                })),
+                currentTaskId: 1,
+                currentInterval: null
+            });
+
+            const updatePositions = (tasks) => 
+                tasks.map((task, index) => ({ ...task, position: index }));
+
+            const stateFromString = (stateString) => {
+                const defaultTitles = ['Task 1', 'Task 2', 'Task 3'];
+                if (!stateString.trim()) return stateFromTitlesOnly(defaultTitles);
+                
+                try {
+                    const state = JSON.parse(atob(stateString));
+                    return { ...state, tasks: updatePositions(state.tasks) };
+                } catch {
+                    // Simple encoding: check for title prefix
+                    const lines = stateString.split('\n').map(line => line.trim()).filter(line => line !== '');
+                    
+                    let title = ""; // Default to empty string for simple imports
+                    let taskLines = lines;
+                    
+                    if (lines.length > 0 && lines[0].startsWith('title: ')) {
+                        title = lines[0].substring(7); // Remove "title: " prefix
+                        taskLines = lines.slice(1);
+                    }
+                    
+                    if (taskLines.length === 0 || taskLines.length > 100 || taskLines.some(name => name.length > 512)) {
+                        throw new Error('Invalid format');
+                    }
+                    
+                    return stateFromTitlesOnly(taskLines, title);
+                }
+            };
+
+            const [title, setTitle] = useState("Task Timer");
+            const [tasks, setTasks] = useState([]);
+            const [currentTime, setCurrentTime] = useState(Date.now());
+            const [editingTask, setEditingTask] = useState(null);
+            const [editingValue, setEditingValue] = useState('');
+            const [editingTitle, setEditingTitle] = useState(false);
+            const [editingTitleValue, setEditingTitleValue] = useState('');
+            const [importFeedback, setImportFeedback] = useState('');
+            const [importText, setImportText] = useState('');
+            const [reorderingTasks, setReorderingTasks] = useState(new Set());
+            const [showSlots, setShowSlots] = useState(false);
+            const [currentSlot, setCurrentSlot] = useState(1);
+            
+            const [currentInterval, setCurrentInterval] = useState(null); // {start: timestamp, type: 'Active'|'Idle', taskId: number}
+            const [currentTaskId, setCurrentTaskId] = useState(1);
+
+            const deleteAllAppState = () => {
+                storage.clearAll();
+                const defaultState = stateFromString('');
+                setTitle(defaultState.title);
+                setTasks(defaultState.tasks);
+                setCurrentTaskId(defaultState.currentTaskId);
+                setCurrentInterval(null);
+                setCurrentSlot(1);
+                setCurrentTime(Date.now());
+                setShowSlots(false);
+            };
+
+            const switchToSlot = (slotId) => {
+                storage.save({ title, tasks, currentTaskId, currentInterval }, currentSlot);
+                
+                setCurrentSlot(slotId);
+                const savedState = storage.load(slotId.toString());
+                
+                if (savedState) {
+                    setTitle(savedState.title || "Task Timer");
+                    setTasks(savedState.tasks);
+                    setCurrentTaskId(savedState.currentTaskId);
+                    setCurrentInterval(savedState.currentInterval);
+                } else {
+                    const defaultState = stateFromString('');
+                    setTitle(defaultState.title);
+                    setTasks(defaultState.tasks);
+                    setCurrentTaskId(defaultState.currentTaskId);
+                    setCurrentInterval(defaultState.currentInterval);
+                }
+                setCurrentTime(Date.now());
+                setShowSlots(false);
+            };
+
+            // Update current time every 100ms when interval is running  
+            useEffect(() => {
+                if (!currentInterval) return;
+                const timer = setInterval(() => setCurrentTime(Date.now()), 100);
+                return () => clearInterval(timer);
+            }, [currentInterval]);
+
+            const handleInputRef = useCallback((input) => {
+                if (input) {
+                    input.select();
+                }
+            }, []);
+
+            // Load saved state on mount
+            useEffect(() => {
+                const currentSlotId = storage.getCurrentSlot();
+                setCurrentSlot(currentSlotId);
+                
+                const savedState = storage.load(currentSlotId.toString());
+                if (savedState) {
+                    setTitle(savedState.title || "Task Timer");
+                    setTasks(savedState.tasks);
+                    setCurrentTaskId(savedState.currentTaskId);
+                    setCurrentInterval(savedState.currentInterval);
+                } else {
+                    const defaultState = stateFromString('');
+                    setTitle(defaultState.title);
+                    setTasks(defaultState.tasks);
+                    setCurrentTaskId(defaultState.currentTaskId);
+                    setCurrentInterval(defaultState.currentInterval);
+                }
+                setCurrentTime(Date.now());
+            }, []);
+
+            // Auto-save whenever state changes
+            useEffect(() => {
+                const currentState = {
+                    title,
+                    tasks,
+                    currentTaskId,
+                    currentInterval
+                };
+                storage.save(currentState, currentSlot);
+            }, [title, tasks, currentTaskId, currentInterval, currentSlot]);
+
+            const getTaskTime = (task, mode) => {
+                const baseTime = task[mode];
+                const isRunning = currentInterval?.taskId === task.id && currentInterval.type === mode;
+                const runningTime = isRunning ? currentTime - currentInterval.start : 0;
+                return {
+                    time: baseTime + runningTime,
+                    isRunning
+                };
+            };
+
+            const getTotals = () => {
+                const totals = tasks.reduce((acc, task) => {
+                    const active = getTaskTime(task, 'Active');
+                    const idle = getTaskTime(task, 'Idle');
+                    return {
+                        Active: acc.Active + active.time,
+                        Idle: acc.Idle + idle.time
+                    };
+                }, { Active: 0, Idle: 0 });
+                
+                const allCompleted = tasks.every(task => task.completed);
+                return { ...totals, allCompleted };
+            };
+
+            const formatTime = (ms) => {
+                const seconds = Math.floor(ms / 1000);
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            const changeIntervalTo = (newState) => {
+                const now = Date.now();
+                setCurrentTime(now);
+                
+                // Skip if same task and mode
+                if (currentInterval && newState && 
+                    currentInterval.taskId === newState.taskId && 
+                    currentInterval.type === newState.mode) {
+                    return;
+                }
+                
+                // Close current interval
+                if (currentInterval) {
+                    const duration = now - currentInterval.start;
+                    setTasks(prev => prev.map(task => 
+                        task.id === currentInterval.taskId 
+                            ? { ...task, [currentInterval.type]: task[currentInterval.type] + duration }
+                            : task
+                    ));
+                }
+                
+                // Start new interval
+                setCurrentInterval(newState && newState.taskId ? {
+                    start: now,
+                    type: newState.mode,
+                    taskId: newState.taskId
+                } : null);
+            };
+
+            const completeTask = (taskId, completed = true) => {
+                // Calculate updated tasks and find first incomplete
+                const updatedTasks = tasks.map(task =>
+                    task.id === taskId ? { ...task, completed } : task
+                );
+                const firstIncomplete = updatedTasks.find(t => !t.completed);
+                
+                setTasks(updatedTasks);
+                
+                // Move to first incomplete task
+                setCurrentTaskId(firstIncomplete?.id);
+                changeIntervalTo(currentInterval ? { mode: currentInterval.type, taskId: firstIncomplete?.id } : null);
+            };
+
+            const changeEditingTaskTo = (newTaskId) => {
+                // Finish current edit if any
+                if (editingTask && editingValue !== undefined) {
+                    setTasks(prev => prev.map(task => 
+                        task.id === editingTask ? { ...task, name: editingValue } : task
+                    ));
+                }
+                
+                // Start new edit or stop editing
+                if (newTaskId) {
+                    const task = tasks.find(t => t.id === newTaskId);
+                    setEditingTask(newTaskId);
+                    setEditingValue(task?.name || '');
+                } else {
+                    setEditingTask(null);
+                    setEditingValue('');
+                }
+            };
+
+            const changeEditingTitleTo = (editing) => {
+                if (editing) {
+                    setEditingTitle(true);
+                    setEditingTitleValue(title || '');
+                } else {
+                    setEditingTitle(false);
+                    setTitle(editingTitleValue);
+                    setEditingTitleValue('');
+                }
+            };
+
+            const decodeState = (stateString) => {
+                const state = stateFromString(stateString);
+                setTitle(state.title);
+                setTasks(state.tasks);
+                setCurrentTaskId(state.currentTaskId);
+                setCurrentInterval(state.currentInterval || null);
+                setCurrentTime(Date.now());
+            };
+
+            const encodeState = () => {
+                // If not started just return task titles (with title if not default)
+                if (!currentInterval && 
+                    tasks.every(task => task.Active === 0 && task.Idle === 0 && !task.completed)) {
+                    const taskNames = tasks.map(task => task.name).join('\n');
+                    return (title && title !== "Task Timer") ? `title: ${title}\n${taskNames}` : taskNames;
+                }
+                
+                const state = { 
+                    title,
+                    tasks: tasks.map(({position, ...task}) => task), // Strip position fields
+                    currentTaskId,
+                    currentInterval
+                };
+                const jsonString = JSON.stringify(state);
+                return btoa(jsonString);
+            };
+
+            const handleExportOrImport = () => {
+                if (importText.trim()) {
+                    // Import mode
+                    handleImport(importText);
+                    setImportText('');
+                } else {
+                    // Export mode
+                    const stateString = encodeState();
+                    navigator.clipboard.writeText(stateString);
+                    setImportFeedback('Copied to clipboard');
+                    setTimeout(() => setImportFeedback(''), 2000);
+                }
+            };
+
+            const handleImport = (stateString) => {
+                try {
+                    decodeState(stateString);
+                    setImportFeedback('Import succeeded');
+                    setTimeout(() => setImportFeedback(''), 2000);
+                } catch (error) {
+                    setImportFeedback('Import FAILED');
+                    setTimeout(() => setImportFeedback(''), 3000);
+                }
+            };
+
+            const handleKeyDown = (e, taskId) => {
+                if (e.key === 'Enter') {
+                    const currentTask = tasks.find(t => t.id === taskId);
+                    const nextTask = tasks.find(t => t.position > currentTask.position);
+                    changeEditingTaskTo(nextTask?.id || null);
+                }
+            };
+
+            const handleTitleKeyDown = (e) => {
+                if (e.key === 'Enter') {
+                    changeEditingTitleTo(false);
+                    // Move to first task
+                    const firstTask = tasks.find(t => t.position === 0);
+                    if (firstTask) {
+                        changeEditingTaskTo(firstTask.id);
+                    }
+                }
+            };
+
+            const moveTaskTo = (taskId, position) => {
+                const currentPosition = tasks.find(t => t.id === currentTaskId)?.position;
+                const taskPosition = tasks.find(t => t.id === taskId)?.position;
+                
+                // Identify tasks that will be displaced (shift down)
+                let targetPosition;
+                if (position === 'now') {
+                    targetPosition = currentPosition;
+                } else if (position === 'next') {
+                    targetPosition = currentPosition + 1;
+                } else if (position === 'sooner') {
+                    targetPosition = taskPosition - 1;
+                }
+                
+                const displacedTasks = new Set(
+                    tasks.filter(t => t.position >= targetPosition && t.position < taskPosition && t.id !== taskId)
+                         .map(t => t.id)
+                );
+                
+                // Step 1: Fade out affected tasks (but not the moving task)
+                setReorderingTasks(displacedTasks);
+                
+                // Step 2: After fade-out completes, move the task
+                setTimeout(() => {
+                    const newTasks = [...tasks];
+                    const [movedTask] = newTasks.splice(taskPosition, 1);
+                    
+                    if (position === 'now') {
+                        newTasks.splice(currentPosition, 0, movedTask);
+                        const firstIncomplete = newTasks.find(t => !t.completed);
+                        setCurrentTaskId(firstIncomplete?.id);
+                    } else if (position === 'next') {
+                        newTasks.splice(currentPosition + 1, 0, movedTask);
+                    } else if (position === 'sooner') {
+                        newTasks.splice(taskPosition - 1, 0, movedTask);
+                    }
+                    
+                    setTasks(updatePositions(newTasks));
+                    
+                    // Step 3: After move completes, fade affected tasks back in
+                    setTimeout(() => {
+                        setReorderingTasks(new Set());
+                    }, 175);
+                }, 175);
+            };
+
+            const currentTask = tasks.find(t => t.id === currentTaskId);
+            const currentPosition = currentTask?.position ?? 9999;
+
+            return (
+                <div className="p-6 max-w-md mx-auto">
+                    <div className="flex items-center mb-6">
+                        <button 
+                            onClick={() => setShowSlots(!showSlots)}
+                            className="px-2 py-2 rounded bg-gray-200 mr-3 text-lg leading-none"
+                            title="Show saved timers"
+                        >
+                            ≡
+                        </button>
+                        {editingTitle ? (
+                            <input 
+                                ref={handleInputRef}
+                                value={editingTitleValue}
+                                onChange={e => setEditingTitleValue(e.target.value)}
+                                onBlur={() => changeEditingTitleTo(false)}
+                                onKeyDown={handleTitleKeyDown}
+                                className="text-2xl font-bold bg-transparent border-b-2 border-blue-500 outline-none"
+                                autoFocus
+                                placeholder="Untitled"
+                            />
+                        ) : (
+                            <h1 
+                                className={`text-2xl font-bold cursor-pointer ${title === '' ? 'text-gray-400 italic' : ''}`}
+                                onClick={() => changeEditingTitleTo(true)}
+                            >
+                                {title === '' ? 'Untitled' : title}
+                            </h1>
+                        )}
+                        <div className="ml-auto flex gap-2">
+                            <button 
+                                onClick={() => changeIntervalTo(null)}
+                                className="px-4 py-2 rounded bg-gray-200"
+                                disabled={currentTask?.completed}
+                            >
+                                Freeze
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    // Keep title and task names, just reset timers and completion
+                                    setTasks(prev => prev.map(task => ({
+                                        ...task,
+                                        completed: false,
+                                        Active: 0,
+                                        Idle: 0
+                                    })));
+                                    setCurrentTaskId(tasks.find(t => t.position === 0)?.id || 1);
+                                    setCurrentInterval(null);
+                                    setCurrentTime(Date.now());
+                                }}
+                                className="px-4 py-2 rounded bg-blue-500 text-white"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Slots Popover */}
+                    {showSlots && (
+              
