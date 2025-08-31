@@ -1,4 +1,5 @@
 // storage.js - Pure storage operations
+alert('storage.js loading');
 const storage = {
   save: (state, slotId = 1) => {
     try {
