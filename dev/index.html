@@ -82,13 +82,12 @@
 
             const deleteAllAppState = () => {
                 storage.clearAll();
-                loadStateIntoApp(1);
+                setStateFromSlot(1);
                 setCurrentSlot(1);
                 setShowSlots(false);
             };
 
-            const loadStateIntoApp = (slotId) => {
-                const state = storage.load(slotId) || stateFromString('');
+            const setState = (state) => {
                 setTitle(state.title);
                 setTasks(state.tasks);
                 setCurrentTaskId(state.currentTaskId);
@@ -96,11 +95,21 @@
                 setCurrentTime(Date.now());
             };
 
+            const setStateFromSlot = (slotId) => {
+                const state = storage.load(slotId) || stateFromString('');
+                setState(state);
+            };
+
+            const setStateFromString = (stateString) => {
+                const state = stateFromString(stateString);
+                setState(state);
+            };
+
             const switchToSlot = (slotId) => {
                 storage.save({ title, tasks, currentTaskId, currentInterval }, currentSlot);
                 
                 setCurrentSlot(slotId);
-                loadStateIntoApp(slotId);
+                setStateFromSlot(slotId);
                 setShowSlots(false);
             };
 
@@ -122,7 +131,7 @@
                 const currentSlotId = storage.getCurrentSlot();
                 setCurrentSlot(currentSlotId);
                 
-                loadStateIntoApp(currentSlotId);
+                setStateFromSlot(currentSlotId);
             }, []);
 
             // Auto-save whenever state changes
@@ -245,11 +254,11 @@
                 setTitle(state.title);
                 setTasks(state.tasks);
                 setCurrentTaskId(state.currentTaskId);
-                setCurrentInterval(state.currentInterval || null);
+                setCurrentInterval(state.currentInterval);
                 setCurrentTime(Date.now());
             };
 
-            const encodeState = () => {
+            const stringFromState = () => {
                 // If not started just return task titles (with title if not default)
                 if (!currentInterval && 
                     tasks.every(task => task.Active === 0 && task.Idle === 0 && !task.completed)) {
@@ -274,7 +283,7 @@
                     setImportText('');
                 } else {
                     // Export mode
-                    const stateString = encodeState();
+                    const stateString = stringFromState();
                     navigator.clipboard.writeText(stateString);
                     setImportFeedback('Copied to clipboard');
                     setTimeout(() => setImportFeedback(''), 2000);
@@ -283,7 +292,7 @@
 
             const handleImport = (stateString) => {
                 try {
-                    decodeState(stateString);
+                    setStateFromString(stateString);
                     setImportFeedback('Import succeeded');
                     setTimeout(() => setImportFeedback(''), 2000);
                 } catch (error) {
