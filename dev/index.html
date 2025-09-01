@@ -82,35 +82,25 @@
 
             const deleteAllAppState = () => {
                 storage.clearAll();
-                const defaultState = stateFromString('');
-                setTitle(defaultState.title);
-                setTasks(defaultState.tasks);
-                setCurrentTaskId(defaultState.currentTaskId);
-                setCurrentInterval(null);
+                loadStateIntoApp(1);
                 setCurrentSlot(1);
-                setCurrentTime(Date.now());
                 setShowSlots(false);
+            };
+
+            const loadStateIntoApp = (slotId) => {
+                const state = storage.load(slotId) || stateFromString('');
+                setTitle(state.title);
+                setTasks(state.tasks);
+                setCurrentTaskId(state.currentTaskId);
+                setCurrentInterval(state.currentInterval);
+                setCurrentTime(Date.now());
             };
 
             const switchToSlot = (slotId) => {
                 storage.save({ title, tasks, currentTaskId, currentInterval }, currentSlot);
                 
                 setCurrentSlot(slotId);
-                const savedState = storage.load(slotId);
-                
-                if (savedState) {
-                    setTitle(savedState.title || "Task Timer");
-                    setTasks(savedState.tasks);
-                    setCurrentTaskId(savedState.currentTaskId);
-                    setCurrentInterval(savedState.currentInterval);
-                } else {
-                    const defaultState = stateFromString('');
-                    setTitle(defaultState.title);
-                    setTasks(defaultState.tasks);
-                    setCurrentTaskId(defaultState.currentTaskId);
-                    setCurrentInterval(defaultState.currentInterval);
-                }
-                setCurrentTime(Date.now());
+                loadStateIntoApp(slotId);
                 setShowSlots(false);
             };
 
@@ -132,20 +122,7 @@
                 const currentSlotId = storage.getCurrentSlot();
                 setCurrentSlot(currentSlotId);
                 
-                const savedState = storage.load(currentSlotId);
-                if (savedState) {
-                    setTitle(savedState.title || "Task Timer");
-                    setTasks(savedState.tasks);
-                    setCurrentTaskId(savedState.currentTaskId);
-                    setCurrentInterval(savedState.currentInterval);
-                } else {
-                    const defaultState = stateFromString('');
-                    setTitle(defaultState.title);
-                    setTasks(defaultState.tasks);
-                    setCurrentTaskId(defaultState.currentTaskId);
-                    setCurrentInterval(defaultState.currentInterval);
-                }
-                setCurrentTime(Date.now());
+                loadStateIntoApp(currentSlotId);
             }, []);
 
             // Auto-save whenever state changes
