@@ -96,7 +96,7 @@
                 storage.save({ title, tasks, currentTaskId, currentInterval }, currentSlot);
                 
                 setCurrentSlot(slotId);
-                const savedState = storage.load(slotId.toString());
+                const savedState = storage.load(slotId);
                 
                 if (savedState) {
                     setTitle(savedState.title || "Task Timer");
@@ -132,7 +132,7 @@
                 const currentSlotId = storage.getCurrentSlot();
                 setCurrentSlot(currentSlotId);
                 
-                const savedState = storage.load(currentSlotId.toString());
+                const savedState = storage.load(currentSlotId);
                 if (savedState) {
                     setTitle(savedState.title || "Task Timer");
                     setTasks(savedState.tasks);
