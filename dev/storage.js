@@ -1,18 +1,11 @@
 // storage.js - Pure storage operations
-alert('storage.js loading');
+// Slots is a dictionary; if localStorage is unset, start with empty dictionary.
+// Slot is anytype; if unset it's undefined (not null)
 const storage = {
-  save: (state, slotId = 1) => {
+  save: (state, slotId) => {
     try {
-      const stateToSave = {
-        title: state.title,
-        tasks: state.tasks.map(({position, ...task}) => task),
-        currentTaskId: state.currentTaskId,
-        currentInterval: state.currentInterval,
-        savedAt: new Date().toISOString()
-      };
-      
       const slots = JSON.parse(localStorage.getItem('taskTimerSlots') || '{}');
-      slots[slotId] = stateToSave;
+      slots[slotId] = state;
       
       localStorage.setItem('taskTimerSlots', JSON.stringify(slots));
       localStorage.setItem('taskTimerCurrentSlot', slotId.toString());
@@ -21,18 +14,10 @@ const storage = {
     }
   },
 
-  load: (slotId = null) => {
+  load: (slotId) => {
     try {
-      const targetSlot = slotId || localStorage.getItem('taskTimerCurrentSlot') || '1';
       const slots = JSON.parse(localStorage.getItem('taskTimerSlots') || '{}');
-      const saved = slots[targetSlot];
-      
-      if (!saved) return null;
-      
-      return {
-        ...saved,
-        tasks: saved.tasks.map((task, index) => ({ ...task, position: index }))
-      };
+      return slots[slotId];
     } catch (error) {
       console.warn('Failed to load from localStorage:', error);
       return null;
