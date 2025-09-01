@@ -1,10 +1,19 @@
 // storage.js - Pure storage operations
 // Slots is a dictionary; if localStorage is unset, start with empty dictionary.
 // Slot is anytype; if unset it's undefined (not null)
+const getSlots = () => {
+  try {
+    return JSON.parse(localStorage.getItem('taskTimerSlots') || '{}');
+  } catch {
+    alert('Corrupt state found in taskTimerSlots.');
+    return {};
+  }
+};
+
 const storage = {
   save: (state, slotId) => {
     try {
-      const slots = JSON.parse(localStorage.getItem('taskTimerSlots') || '{}');
+      const slots = getSlots();
       slots[slotId] = state;
       
       localStorage.setItem('taskTimerSlots', JSON.stringify(slots));
@@ -15,26 +24,16 @@ const storage = {
   },
 
   load: (slotId) => {
-    try {
-      const slots = JSON.parse(localStorage.getItem('taskTimerSlots') || '{}');
-      return slots[slotId];
-    } catch (error) {
-      console.warn('Failed to load from localStorage:', error);
-      return null;
-    }
+    const slots = getSlots();
+    return slots[slotId];
   },
 
   getAllSlots: () => {
-    try {
-      const slots = JSON.parse(localStorage.getItem('taskTimerSlots') || '{}');
-      return [1, 2, 3, 4, 5].map(i => ({
-        id: i,
-        data: slots[i] || null
-      }));
-    } catch (error) {
-      console.warn('Failed to load slots:', error);
-      return [1, 2, 3, 4, 5].map(i => ({ id: i, data: null }));
-    }
+    const slots = getSlots();
+    return [1, 2, 3, 4, 5].map(i => ({
+      id: i,
+      data: slots[i] || null
+    }));
   },
 
   clearAll: () => {
